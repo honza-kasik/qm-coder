@@ -49,6 +49,40 @@ presets = [#q_e, mps_inc, lps_dec
     [0x0001, 0, 1]
 ]
 
+presets2 = [#q_e hexa, next MPS, next LPS, SWITCH
+    [0x5608, 1, 0, 1],
+    [0x5408, 2, 0, 0],
+    [0x5008, 3, 1, 0],
+    [0x4808, 4, 2, 0],
+    [0x3808, 5, 3, 0],
+    [0x3408, 6, 4, 0],
+    [0x3008, 7, 5, 0],
+    [0x2808, 8, 5, 0],
+    [0x2408, 9, 6, 0],
+    [0x2208, 10, 7, 0],
+    [0x1C08, 11, 8, 0],
+    [0x1808, 12, 9, 0],
+    [0x1608, 13, 10, 0],
+    [0x1408, 14, 11, 0],
+    [0x1208, 15, 12, 0],
+    [0x0C08, 16, 13, 0],
+    [0x0908, 17, 14, 0],
+    [0x0708, 18, 15, 0],
+    [0x0508, 19, 16, 0],
+    [0x0388, 20, 17, 0],
+    [0x02C8, 21, 18, 0],
+    [0x0298, 22, 19, 0],
+    [0x0138, 23, 20, 0],
+    [0x00b8, 24, 21, 0],
+    [0x0098, 25, 21, 0],
+    [0x0058, 26, 23, 0],
+    [0x0038, 27, 23, 0],
+    [0x0028, 28, 25, 0],
+    [0x0018, 29, 25, 0],
+    [0x0008, 29, 27, 0]
+]
+
+
 class ProbabilityTable:
 
     def __init__(self):
@@ -63,8 +97,26 @@ class ProbabilityTable:
     def q_e(self):
         return presets[self._index][0]
 
-    def is_mps_switch_needed(self):
+    def is_interval_switch_needed(self):
         return presets[self._index][2] == -1
+
+
+class ProbabilityTable2:
+
+    def __init__(self):
+        self._index = 0
+
+    def next_lps(self):
+        self._index = presets2[self._index][2]
+
+    def next_mps(self):
+        self._index = presets2[self._index][1]
+
+    def q_e(self):
+        return presets2[self._index][0]
+
+    def is_interval_switch_needed(self):
+        return presets2[self._index][3] == 1
 
 
 class Coder:
@@ -73,16 +125,17 @@ class Coder:
         self._input = input
         self._output = output
         self._p_table = ProbabilityTable()
-        self._a = 0xB55A
+        self._a = 0xAAAA
         self._c = 0x0000
         self._excessive_bits = 15
 
 
     def encode(self):
-        bits = [1,0,0,0,1,0,0,1,0,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,0] #0b1000100100101
-        print(len(bits))
+        #bits = [1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,1,0,0,0,0,0] #100010010011111100000
+        bits = [1, 0, 1, 1, 1]
         self._lps = 0
         for bit in bits:
+            print("encoding", bit)
             self._encode_bit(bit)
         return (self._c, self._p_table.q_e(), self._lps, self._excessive_bits)
 
@@ -90,22 +143,20 @@ class Coder:
         if bit == self._lps: #lps
             self._c = self._c + (self._a - self._p_table.q_e())
             self._a = self._p_table.q_e()
+            if self._p_table.is_interval_switch_needed():
+                self._swap_lps_mps()
+                self._p_table.next_mps()
+            else:
+                self._p_table.next_lps()
             self._renormalize()
-            self._do_conditional_exchange_if_needed()
-            self._p_table.next_lps()
         else: #mps
             self._a = self._a - self._p_table.q_e()
+            self._p_table.next_mps()
             if self._a < 0x8000:
-                if self._is_conditional_exchange_needed():
-                    #self._c = self._c + self._a
-                    #self._a = self._p_table.q_e()
-                    self._swap_lps_mps()
                 self._renormalize()
-                self._do_conditional_exchange_if_needed()
-                self._p_table.next_mps()
 
     def _is_conditional_exchange_needed(self):
-        return self._p_table.is_mps_switch_needed()
+        return self._p_table.is_interval_switch_needed()
         #return self._a < self._p_table.q_e()
 
     def _do_conditional_exchange_if_needed(self):
@@ -135,6 +186,7 @@ class Coder:
         self._excessive_bits = self._input[3]
 
         self._interval_pointer = self._c & 0x7fff #0x7fff - first 15 bits 111 1111 1111 1111
+        print("First interval pointer", self._interval_pointer)
         self._c >>= 15
         self._excessive_bits -= 15
         output = bitarray.bitarray()
@@ -145,27 +197,23 @@ class Coder:
 
     def _decode_bit(self):
         dividing_line = self._a - self._p_table.q_e()
-        print("interval_pointer", self._interval_pointer, "dividing_line",dividing_line, self._a)
-        if self._interval_pointer < dividing_line: #points to the lower interval -> decoded lps
-            print("BAR")
+        print("interval_pointer", self._interval_pointer, "dividing_line", dividing_line, "top_limit", self._a)
+        if self._interval_pointer > dividing_line: #points to the upper interval -> decoded lps
             d = self._lps
             self._interval_pointer = self._interval_pointer - (self._a - self._p_table.q_e())
             self._a = self._p_table.q_e()
+            if self._is_conditional_exchange_needed():
+                self._swap_lps_mps()
+                self._p_table.next_mps()
+            else:
+                self._p_table.next_lps()
             self._renormalize_decode()
-            self._do_conditional_exchange_if_needed()
-            self._p_table.next_lps()
-        else: #points to the upper interval -> decoded mps
-            print("FOO")
+        else: #points to the lower interval -> decoded mps
             d = self._get_mps()
             self._a = self._a - self._p_table.q_e()
+            self._p_table.next_mps()
             if self._a < 0x8000:
-                if self._is_conditional_exchange_needed():
-                    #self._interval_pointer = self._interval_pointer + self._a
-                    #self._a = self._p_table.q_e()
-                    self._swap_lps_mps()
                 self._renormalize_decode()
-                self._do_conditional_exchange_if_needed()
-                self._p_table.next_mps()
         return d
 
     def _renormalize_decode(self):

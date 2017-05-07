@@ -1,89 +1,18 @@
-29
-(5247870745312, 17977, 0, 43)
-decoding:  (5247870745312, 17977, 0, 43)
-c: 5247870745312
-c: 160152305
-interval_pointer 15072 dividing_line 23407 46426
-BAR
-c: 80076152
-interval_pointer -16669 dividing_line 24244 46038
-BAR
-c: 40038076
-interval_pointer -81826 dividing_line 20569 43588
-BAR
-c: 20019038
-interval_pointer -204790 dividing_line 24244 46038
-BAR
-c: 10009519
-interval_pointer -458068 dividing_line 20569 43588
-BAR
-c: 5004759
-interval_pointer -957273 dividing_line 24244 46038
-BAR
-c: 2502379
-interval_pointer -1963033 dividing_line 20569 43588
-BAR
-c: 1251189
-interval_pointer -3967203 dividing_line 24244 46038
-BAR
-c: 625594
-interval_pointer -7982893 dividing_line 20569 43588
-BAR
-c: 312797
-interval_pointer -16006924 dividing_line 24244 46038
-BAR
-c: 156398
-interval_pointer -32062335 dividing_line 20569 43588
-BAR
-c: 78199
-interval_pointer -64165808 dividing_line 24244 46038
-BAR
-c: 39099
-interval_pointer -128380103 dividing_line 20569 43588
-BAR
-c: 19549
-interval_pointer -256801343 dividing_line 24244 46038
-BAR
-c: 9774
-interval_pointer -513651173 dividing_line 20569 43588
-BAR
-c: 4887
-interval_pointer -1027343484 dividing_line 24244 46038
-BAR
-c: 2443
-interval_pointer -2054735455 dividing_line 20569 43588
-BAR
-c: 1221
-interval_pointer -4109512047 dividing_line 24244 46038
-BAR
-c: 610
-interval_pointer -8219072581 dividing_line 20569 43588
-BAR
-c: 305
-interval_pointer -16438186300 dividing_line 24244 46038
-BAR
-c: 152
-interval_pointer -32876421087 dividing_line 20569 43588
-BAR
-c: 76
-interval_pointer -65752883312 dividing_line 24244 46038
-BAR
-c: 38
-interval_pointer -131505815112 dividing_line 20569 43588
-BAR
-c: 19
-interval_pointer -263011671362 dividing_line 24244 46038
-BAR
+encoding 1
+encoding 0
+encoding 1
+encoding 1
+encoding 1
+(312768, 19333, 0, 20)
+decoding:  (312768, 19333, 0, 20)
+c: 312768
+First interval pointer 17856
 c: 9
-interval_pointer -526023391211 dividing_line 20569 43588
-BAR
+interval_pointer 17856 dividing_line 20671 top_limit 43690
 c: 4
-interval_pointer -1052046823559 dividing_line 24244 46038
-BAR
+interval_pointer 35713 dividing_line 19548 top_limit 41342
 c: 2
-interval_pointer -2104093695606 dividing_line 20569 43588
-BAR
+interval_pointer 32330 dividing_line 20569 top_limit 43588
 c: 1
-interval_pointer -4208187432350 dividing_line 24244 46038
-BAR
-28 ' bitarray('0110011001100110011001100110') '
+interval_pointer 23522 dividing_line 24244 top_limit 46038
+4 ' bitarray('1000') '
