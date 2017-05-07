@@ -49,60 +49,64 @@ presets = [#q_e, mps_inc, lps_dec
     [0x0001, 0, 1]
 ]
 
+class ProbabilityTable:
+
+    def __init__(self):
+        self._index = 0
+
+    def next_lps(self):
+        self._index -= presets[self._index][2]
+
+    def next_mps(self):
+        self._index += presets[self._index][1]
+
+    def q_e(self):
+        return presets[self._index][0]
+
+    def is_mps_switch_needed(self):
+        return presets[self._index][2] == -1
+
+
 class Coder:
 
     def __init__(self, input, output):
         self._input = input
         self._output = output
-        self._qe_index = 0
+        self._p_table = ProbabilityTable()
         self._a = 0xB55A
         self._c = 0x0000
-        self._q_e = presets[self._qe_index][0]
         self._excessive_bits = 15
 
 
     def encode(self):
-        bits = bitarray.bitarray()
-        with open(self._input, 'rb') as file:
-            bits.fromfile(file)
-
-        if bits.count(0) > bits.count(1):
-            self._lps = 1
-        else:
-            self._lps = 0
-
-        try:
-            while(True):
-                self._encode_bit(bits.pop())
-        except IndexError:
-            print("End of bits! All should be compressed with ", self._excessive_bits, " excessive bits!")
-            return (self._c, self._q_e, self._lps, self._excessive_bits)
+        bits = [1,0,0,0,1,0,0,1,0,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,0] #0b1000100100101
+        print(len(bits))
+        self._lps = 0
+        for bit in bits:
+            self._encode_bit(bit)
+        return (self._c, self._p_table.q_e(), self._lps, self._excessive_bits)
 
     def _encode_bit(self, bit):
-        if bit == self._lps:
-            self._c = self._c + self._a - self._q_e
-            print(self._c, self._a)
-            self._a = self._q_e
+        if bit == self._lps: #lps
+            self._c = self._c + (self._a - self._p_table.q_e())
+            self._a = self._p_table.q_e()
             self._renormalize()
-            self._adjust_q_e(True)
-        else:
-            self._a = self._a - self._q_e
-            if self._a < 0x8000:
-                self._renormalize()
-                self._adjust_q_e(False)
-
-    def _adjust_q_e(self, is_lps):
-        if is_lps:
-            self._qe_index -= presets[self._qe_index][2]
-            self._q_e = presets[self._qe_index][0]
-            # conditional exchange
             self._do_conditional_exchange_if_needed()
-        else:
-            self._qe_index += presets[self._qe_index][1]
-            self._q_e = presets[self._qe_index][0]
+            self._p_table.next_lps()
+        else: #mps
+            self._a = self._a - self._p_table.q_e()
+            if self._a < 0x8000:
+                if self._is_conditional_exchange_needed():
+                    self._c = self._c + self._a
+                    self._a = self._p_table.q_e()
+                    self._swap_lps_mps()
+                self._renormalize()
+                self._do_conditional_exchange_if_needed()
+                self._p_table.next_mps()
 
     def _is_conditional_exchange_needed(self):
-        return presets[self._qe_index][2] == -1
+        return self._p_table.is_mps_switch_needed()
+        #return self._a < self._p_table.q_e()
 
     def _do_conditional_exchange_if_needed(self):
         if self._is_conditional_exchange_needed():
@@ -130,43 +134,43 @@ class Coder:
         self._lps = self._input[2]
         self._excessive_bits = self._input[3]
 
-        self._decoded_value = self._c & 0x7fff #0x7fff - first 15 bits
+        self._interval_pointer = self._c & 0x7fff #0x7fff - first 15 bits 111 1111 1111 1111
         self._c >>= 15
         self._excessive_bits -= 15
         output = bitarray.bitarray()
         while(self._c > 0):
-            #print("c:", self._c)
+            print("c:", self._c)
             output.append(self._decode_bit())
         return output
 
     def _decode_bit(self):
-        dividing_line = self._a - self._q_e
-        if self._decoded_value < dividing_line:
-            d = self._get_mps()
-            self._a -= self._q_e
-            self._qe_index += presets[self._qe_index][1]
-            self._q_e = presets[self._qe_index][0]
-            if self._a < 0x8000:
-                self._renormalize_decode()
-        else:
-            print("BAR")
+        dividing_line = self._a - self._p_table.q_e()
+        print("foo", self._interval_pointer, dividing_line, self._a)
+        if self._interval_pointer < dividing_line: #points to the lower interval -> decoded lps
             d = self._lps
-            self._decoded_value -= dividing_line
-            self._a = self._q_e
-            if self._is_conditional_exchange_needed():
-                self._swap_lps_mps()
-                self._qe_index += presets[self._qe_index][1]
-            else:
-                self._qe_index -= presets[self._qe_index][2]
-            self._q_e = presets[self._qe_index][0]
+            self._interval_pointer = self._interval_pointer - (self._a - self._p_table.q_e())
+            self._a = self._p_table.q_e()
             self._renormalize_decode()
+            self._do_conditional_exchange_if_needed()
+            self._p_table.next_lps()
+        else: #points to the upper interval -> decoded mps
+            d = self._get_mps()
+            self._a = self._a - self._p_table.q_e()
+            if self._a < 0x8000:
+                if self._is_conditional_exchange_needed():
+                    self._interval_pointer = self._interval_pointer + self._a
+                    self._a = self._p_table.q_e()
+                    self._swap_lps_mps()
+                self._renormalize_decode()
+                self._do_conditional_exchange_if_needed()
+                self._p_table.next_mps()
         return d
 
     def _renormalize_decode(self):
         while self._a < 0x8000:
             self._a <<= 1
-            self._decoded_value = (self._decoded_value << 1) | (self._c & 1)
-            self._c >>= 1
+            self._interval_pointer = (self._interval_pointer << 1) | (self._c & 1) #copy new bit from sequence to interval pointer
+            self._c >>= 1 #remove bit from sequence
             self._excessive_bits -= 1
 
 def main():
