@@ -97,8 +97,8 @@ class Coder:
             self._a = self._a - self._p_table.q_e()
             if self._a < 0x8000:
                 if self._is_conditional_exchange_needed():
-                    self._c = self._c + self._a
-                    self._a = self._p_table.q_e()
+                    #self._c = self._c + self._a
+                    #self._a = self._p_table.q_e()
                     self._swap_lps_mps()
                 self._renormalize()
                 self._do_conditional_exchange_if_needed()
@@ -145,8 +145,9 @@ class Coder:
 
     def _decode_bit(self):
         dividing_line = self._a - self._p_table.q_e()
-        print("foo", self._interval_pointer, dividing_line, self._a)
+        print("interval_pointer", self._interval_pointer, "dividing_line",dividing_line, self._a)
         if self._interval_pointer < dividing_line: #points to the lower interval -> decoded lps
+            print("BAR")
             d = self._lps
             self._interval_pointer = self._interval_pointer - (self._a - self._p_table.q_e())
             self._a = self._p_table.q_e()
@@ -154,12 +155,13 @@ class Coder:
             self._do_conditional_exchange_if_needed()
             self._p_table.next_lps()
         else: #points to the upper interval -> decoded mps
+            print("FOO")
             d = self._get_mps()
             self._a = self._a - self._p_table.q_e()
             if self._a < 0x8000:
                 if self._is_conditional_exchange_needed():
-                    self._interval_pointer = self._interval_pointer + self._a
-                    self._a = self._p_table.q_e()
+                    #self._interval_pointer = self._interval_pointer + self._a
+                    #self._a = self._p_table.q_e()
                     self._swap_lps_mps()
                 self._renormalize_decode()
                 self._do_conditional_exchange_if_needed()
@@ -179,7 +181,8 @@ def main():
     print(coded)
     decoder = Coder(coded, "foo")
     print("decoding: ", coded)
-    print("'", decoder.decode(), "'")
+    decoded = decoder.decode()
+    print(len(decoded), "'", decoded, "'")
 
 if __name__ == "__main__":
     main()
