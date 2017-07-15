@@ -3,6 +3,7 @@ import math
 import argparse
 from ctypes import *
 from utils import load_first_x_bits_from_bitarray
+from utils import write_bitarray_to_file
 from loggingconf import logger
 
 
@@ -63,9 +64,11 @@ class ProbabilityTable:
 
     def next_lps(self):
         self._index -= presets[self._index][2]
+        logger.debug("Moved to next LPS, current index is %i", self._index)
 
     def next_mps(self):
         self._index += presets[self._index][1]
+        logger.debug("Moved to next MPS, current index is %i", self._index)
 
     def q_e(self):
         return presets[self._index][0]
@@ -75,11 +78,9 @@ class ProbabilityTable:
 
 class Encoder:
 
-    def __init__(self, input_path, output_path):
-        self._input = bitarray.bitarray()
-        self._input.fromfile(open(input_path, 'rb'))
-        logger.debug("Loaded bitarray from file '%s' with endianity '%s' and lenght '%i'", input_path, self._input.endian(), len(self._input))
-        self._output_path = output_path
+    def __init__(self, input):
+        self._input = input
+        logger.debug("Loaded bitarray with endianity '%s' and lenght '%i'", self._input.endian(), len(self._input))
         self._p_table = ProbabilityTable()
         self._a = c_uint16(0xb55a)
         self._c = c_uint16(0x0000)
@@ -95,7 +96,6 @@ class Encoder:
         except IndexError:
             pass #ignored - end of bits to encode
         self._out.append(1)
-        self._write_output(self._out)
 
     def _encode_bit(self, bit):
         if bit == self._lps:
@@ -136,7 +136,7 @@ class Encoder:
             #C < 0,5 (0xFFFF / 2)
             logger.debug("C value is '%s'", hex(self._c.value))
             logger.debug("A value is '%s'", hex(self._a.value))
-            if self._c .value< 0x5555:
+            if self._c.value < 0x5555:
                 b = 0
                 d = 0
             else:
@@ -155,7 +155,7 @@ class Encoder:
         Conditional exchange if needed - if LPS subinterval becomes greater than LPS subinterval. This means, that
         "less probable symbol" would be more probable than "more probable symbol", so switch takes place.
         """
-        logger.debug("Should be switched according to values? '%s'", str(self._q_e() > self._a.value - self._q_e()))
+        #logger.debug("Should be switched according to values? '%s'", str(self._q_e() > self._a.value - self._q_e()))
         if self._p_table.is_interval_switch_needed():
             #self._a, self._c = self._c, self._a
             self._lps = not(self._lps)
@@ -165,23 +165,20 @@ class Encoder:
     def _write_bit(self, bit):
         self._out.append(bit)
 
-    def _write_output(self, output):
-        with open(self._output_path, 'wb') as file:
-            output.tofile(file)
+    def get_output(self) -> bitarray:
+        return self._out
 
 class Decoder:
 
-    def __init__(self, input_path, output_path):
+    def __init__(self, input):
         self._a = c_uint16(0xAAAA)
         self._c = c_uint16(0x0000)
-        self._input = bitarray.bitarray()
-        self._input.fromfile(open(input_path, 'rb'))
-        self._output_path = output_path
+        self._input = input
         self._p_table = ProbabilityTable()
         self._out = bitarray.bitarray()
         self._lps = 1
         self._interval_pointer = c_uint16(self._load_int_from_bitarray(self._input))
-        logger.debug("Loaded '%i' as interval pointer, bin: '%s'", self._interval_pointer.value, str(bin(self._interval_pointer.value)))
+        logger.debug("Loaded '%i' as interval pointer, bin: '%s'", self._interval_pointer.value, str(hex(self._interval_pointer.value)))
 
     def decode(self):
         while self._input.length() > 0:
@@ -192,7 +189,6 @@ class Decoder:
             else:
                 self._decoded_mps()
                 logger.debug("Decoded MPS!")
-        self._write_to_file()
 
     def _decoded_lps(self):
         self._write_bit(self._lps)
@@ -209,6 +205,8 @@ class Decoder:
             self._p_table.next_mps()
 
     def _renormalize(self):
+        logger.debug("Renormalizing!")
+
         if self._p_table.is_interval_switch_needed():
             self._lps = not(self._lps)
 
@@ -244,20 +242,25 @@ class Decoder:
     def _write_bit(self, bit):
         self._out.append(bit)
 
-    def _write_to_file(self):
-        with open(self._output_path, 'wb') as file:
-            self._out.tofile(file)
-
     def _rounded_log_base_2(self, number):
         return int(math.ceil(math.log(number, 2)))
 
+    def get_output(self) -> bitarray:
+        return self._out
+
 def _encode(input_path, output_path):
-    coder = Encoder(input_path, output_path)
+    input = bitarray.bitarray()
+    input.fromfile(input_path)
+    coder = Encoder(input)
     coder.encode()
+    write_bitarray_to_file(coder.get_output(), output_path)
 
 def _decode(input_path, output_path):
-    decoder = Decoder(input_path, output_path)
+    input = bitarray.bitarray()
+    input.fromfile(input_path)
+    decoder = Decoder(input)
     decoder.decode()
+    write_bitarray_to_file(decoder.get_output(), output_path)
 
 def main():
     parser = argparse.ArgumentParser(description='QM encoder/decoder')

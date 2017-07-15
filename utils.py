@@ -10,3 +10,7 @@ def load_first_x_bits_from_bitarray(b: bitarray, bit_count):
         c |= (top_bit << i)
         logger.debug("New value: %s", str(bin(c)))
     return c >> 1
+
+def write_bitarray_to_file(b: bitarray, path):
+    with open(path, 'wb') as file:
+        b.tofile(file)
