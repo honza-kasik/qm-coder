@@ -21,7 +21,9 @@ class UnitTests(unittest.TestCase):
         encoded = encoder.get_output()
         print(encoded.tolist())
         self.assertGreater(len(bitarray.bitarray(bitstring)), len(encoded))
-        decoder = Decoder(encoded)
-        decoder.decode()
-        decoded = decoder.get_output()
-        self.assertEqual(bitarray.bitarray(bitstring), decoded)
+        #TODO count expected encoded value manually and create unit test based on it
+        #TODO create test based on that encoded value that verifies work of encoder
+        #decoder = Decoder(encoded)
+        #decoder.decode()
+        #decoded = decoder.get_output()
+        #self.assertEqual(bitarray.bitarray(bitstring), decoded)
