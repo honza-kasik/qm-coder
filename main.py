@@ -1,13 +1,9 @@
 import bitarray
 import math
 import argparse
-import logging
 from ctypes import *
-
-logging.basicConfig(level=logging.DEBUG)
-hdlr = logging.FileHandler("log.txt")
-logger = logging.getLogger(__name__)
-logger.addHandler(hdlr)
+from utils import load_first_x_bits_from_bitarray
+from loggingconf import logger
 
 
 presets = [#q_e, mps_inc, lps_dec
@@ -93,7 +89,7 @@ class Encoder:
         self._lps = 1
         try:
             while(True):
-                bit = self._input.pop()
+                bit = self._input.pop(0)
                 logger.info("Encoding bit!")
                 self._encode_bit(bit)
         except IndexError:
@@ -232,22 +228,15 @@ class Decoder:
 
     def _load_next_bit_to_interval_pointer(self, bitarr: bitarray, d: int):
         try:
-            b = bitarr.pop()
+            b = bitarr.pop(0)
         except IndexError:
             b = 0
         self._interval_pointer = c_uint16(((self._interval_pointer.value - d) << 1) + b)
         logger.debug("Interval pointer is '%i'", self._interval_pointer.value)
 
     def _load_int_from_bitarray(self, bitarr):
-        "Get x highest bits to form a bitarray"
-        c = 0
         bit_count = self._rounded_log_base_2(self._q_e())
-        for i in range(bit_count, 0, -1):
-            top_bit = bitarr.pop()
-            logger.debug("Loading %i", top_bit)
-            c |= (top_bit << i)
-            logger.debug("New value: %s", str(bin(c)))
-        return c
+        return load_first_x_bits_from_bitarray(bitarr, bit_count)
 
     def _q_e(self):
         return self._p_table.q_e()
