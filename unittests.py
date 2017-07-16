@@ -1,7 +1,10 @@
 import unittest
 import bitarray
 from utils import load_first_x_bits_from_bitarray
-from main import Decoder, Encoder
+from coder import Decoder, Encoder
+
+import logging
+logger = logging.getLogger(__name__)
 
 class UnitTests(unittest.TestCase):
 
@@ -13,7 +16,7 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(int(bitstring, 2), c)
 
     def test_encode_decode(self):
-        bitstring = "01000111111111111111111111111111111111111111111111111000000"
+        bitstring = "010001010"
         expected_encoded = "010"
         b = bitarray.bitarray(bitstring)
         encoder = Encoder(b)
